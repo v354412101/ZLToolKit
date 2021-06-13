@@ -22,23 +22,21 @@
 #include "Network/sockutil.h"
 
 
-#if defined(HAS_EPOLL)
-    #include <sys/epoll.h>
+#include <sys/epoll.h>
 
-    #if !defined(EPOLLEXCLUSIVE)
-    #define EPOLLEXCLUSIVE 0
-    #endif
+#if !defined(EPOLLEXCLUSIVE)
+#define EPOLLEXCLUSIVE 0
+#endif
 
-    #define EPOLL_SIZE 1024
-    #define toEpoll(event)    (((event) & Event_Read) ? EPOLLIN : 0) \
-                                | (((event) & Event_Write) ? EPOLLOUT : 0) \
-                                | (((event) & Event_Error) ? (EPOLLHUP | EPOLLERR) : 0) \
-                                | (((event) & Event_LT) ?  0 : EPOLLET)
-    #define toPoller(epoll_event) (((epoll_event) & EPOLLIN) ? Event_Read : 0) \
-                                | (((epoll_event) & EPOLLOUT) ? Event_Write : 0) \
-                                | (((epoll_event) & EPOLLHUP) ? Event_Error : 0) \
-                                | (((epoll_event) & EPOLLERR) ? Event_Error : 0)
-#endif //HAS_EPOLL
+#define EPOLL_SIZE 1024
+#define toEpoll(event)    (((event) & Event_Read) ? EPOLLIN : 0) \
+                            | (((event) & Event_Write) ? EPOLLOUT : 0) \
+                            | (((event) & Event_Error) ? (EPOLLHUP | EPOLLERR) : 0) \
+                            | (((event) & Event_LT) ?  0 : EPOLLET)
+#define toPoller(epoll_event) (((epoll_event) & EPOLLIN) ? Event_Read : 0) \
+                            | (((epoll_event) & EPOLLOUT) ? Event_Write : 0) \
+                            | (((epoll_event) & EPOLLHUP) ? Event_Error : 0) \
+                            | (((epoll_event) & EPOLLERR) ? Event_Error : 0)
 
 namespace toolkit {
 
@@ -51,13 +49,12 @@ EventPoller::EventPoller(ThreadPool::Priority priority ) {
     SockUtil::setNoBlocked(_pipe.readFD());
     SockUtil::setNoBlocked(_pipe.writeFD());
 
-#if defined(HAS_EPOLL)
     _epoll_fd = epoll_create(EPOLL_SIZE);
     if (_epoll_fd == -1) {
         throw runtime_error(StrPrinter << "创建epoll文件描述符失败:" << get_uv_errmsg());
     }
     SockUtil::setCloExec(_epoll_fd);
-#endif //HAS_EPOLL
+
     _logger = Logger::Instance().shared_from_this();
     _loop_thread_id = this_thread::get_id();
 
@@ -84,12 +81,11 @@ void EventPoller::shutdown() {
 EventPoller::~EventPoller() {
     shutdown();
     wait();
-#if defined(HAS_EPOLL)
     if (_epoll_fd != -1) {
         close(_epoll_fd);
         _epoll_fd = -1;
     }
-#endif //defined(HAS_EPOLL)
+
     //退出前清理管道中的数据
     _loop_thread_id = this_thread::get_id();
     onPipeEvent();
@@ -104,7 +100,6 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
     }
 
     if (isCurrentThread()) {
-#if defined(HAS_EPOLL)
         struct epoll_event ev = {0};
         ev.events = (toEpoll(event)) | EPOLLEXCLUSIVE;
         ev.data.fd = fd;
@@ -113,20 +108,6 @@ int EventPoller::addEvent(int fd, int event, PollEventCB cb) {
             _event_map.emplace(fd, std::make_shared<PollEventCB>(std::move(cb)));
         }
         return ret;
-#else
-#ifndef _WIN32
-        //win32平台，socket套接字不等于文件描述符，所以可能不适用这个限制
-        if (fd >= FD_SETSIZE || _event_map.size() >= FD_SETSIZE) {
-            WarnL << "select最多监听" << FD_SETSIZE << "个文件描述符";
-            return -1;
-        }
-#endif
-        Poll_Record::Ptr record(new Poll_Record);
-        record->event = event;
-        record->callBack = std::move(cb);
-        _event_map.emplace(fd, record);
-        return 0;
-#endif //HAS_EPOLL
     }
 
     async([this, fd, event, cb]() {
@@ -142,15 +123,9 @@ int EventPoller::delEvent(int fd, PollDelCB cb) {
     }
 
     if (isCurrentThread()) {
-#if defined(HAS_EPOLL)
         bool success = epoll_ctl(_epoll_fd, EPOLL_CTL_DEL, fd, NULL) == 0 && _event_map.erase(fd) > 0;
         cb(success);
         return success ? 0 : -1;
-#else
-        cb(_event_map.erase(fd));
-        return 0;
-#endif //HAS_EPOLL
-
     }
 
     //跨线程操作
@@ -162,24 +137,10 @@ int EventPoller::delEvent(int fd, PollDelCB cb) {
 
 int EventPoller::modifyEvent(int fd, int event) {
     TimeTicker();
-#if defined(HAS_EPOLL)
     struct epoll_event ev = {0};
     ev.events = toEpoll(event);
     ev.data.fd = fd;
     return epoll_ctl(_epoll_fd, EPOLL_CTL_MOD, fd, &ev);
-#else
-    if (isCurrentThread()) {
-        auto it = _event_map.find(fd);
-        if (it != _event_map.end()) {
-            it->second->event = event;
-        }
-        return 0;
-    }
-    async([this, fd, event]() {
-        modifyEvent(fd, event);
-    });
-    return 0;
-#endif //HAS_EPOLL
 }
 
 Task::Ptr EventPoller::async(TaskIn task, bool may_sync) {
@@ -272,7 +233,6 @@ void EventPoller::runLoop(bool blocked,bool regist_self) {
         _sem_run_started.post();
         _exit_flag = false;
         uint64_t minDelay;
-#if defined(HAS_EPOLL)
         struct epoll_event events[EPOLL_SIZE];
         while (!_exit_flag) {
             minDelay = getMinDelay();
@@ -299,72 +259,6 @@ void EventPoller::runLoop(bool blocked,bool regist_self) {
                 }
             }
         }
-#else
-        int ret, max_fd;
-        FdSet set_read, set_write, set_err;
-        List<Poll_Record::Ptr> callback_list;
-        struct timeval tv;
-        while (!_exit_flag) {
-            //定时器事件中可能操作_event_map
-            minDelay = getMinDelay();
-            tv.tv_sec = minDelay / 1000;
-            tv.tv_usec = 1000 * (minDelay % 1000);
-
-            set_read.fdZero();
-            set_write.fdZero();
-            set_err.fdZero();
-            max_fd = 0;
-            for (auto &pr : _event_map) {
-                if (pr.first > max_fd) {
-                    max_fd = pr.first;
-                }
-                if (pr.second->event & Event_Read) {
-                    set_read.fdSet(pr.first);//监听管道可读事件
-                }
-                if (pr.second->event & Event_Write) {
-                    set_write.fdSet(pr.first);//监听管道可写事件
-                }
-                if (pr.second->event & Event_Error) {
-                    set_err.fdSet(pr.first);//监听管道错误事件
-                }
-            }
-
-            startSleep();//用于统计当前线程负载情况
-            ret = zl_select(max_fd + 1, &set_read, &set_write, &set_err, minDelay ? &tv : NULL);
-            sleepWakeUp();//用于统计当前线程负载情况
-
-            if (ret <= 0) {
-                //超时或被打断
-                continue;
-            }
-            //收集select事件类型
-            for (auto &pr : _event_map) {
-                int event = 0;
-                if (set_read.isSet(pr.first)) {
-                    event |= Event_Read;
-                }
-                if (set_write.isSet(pr.first)) {
-                    event |= Event_Write;
-                }
-                if (set_err.isSet(pr.first)) {
-                    event |= Event_Error;
-                }
-                if (event != 0) {
-                    pr.second->attach = event;
-                    callback_list.emplace_back(pr.second);
-                }
-            }
-
-            callback_list.for_each([](Poll_Record::Ptr &record) {
-                try {
-                    record->callBack(record->attach);
-                } catch (std::exception &ex) {
-                    ErrorL << "EventPoller执行事件回调捕获到异常:" << ex.what();
-                }
-            });
-            callback_list.clear();
-        }
-#endif //HAS_EPOLL
     } else {
         _loop_thread = new thread(&EventPoller::runLoop, this, true, regist_self);
         _sem_run_started.wait();

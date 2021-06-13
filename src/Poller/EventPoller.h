@@ -25,10 +25,6 @@
 #include "Thread/ThreadPool.h"
 using namespace std;
 
-#if defined(__linux__) || defined(__linux)
-#define HAS_EPOLL
-#endif //__linux__
-
 namespace toolkit {
 
 typedef enum {
@@ -195,20 +191,9 @@ private:
     //保持日志可用
     Logger::Ptr _logger;
 
-#if defined(HAS_EPOLL)
     //epoll相关
     int _epoll_fd = -1;
     unordered_map<int, std::shared_ptr<PollEventCB> > _event_map;
-#else
-    //select相关
-    struct Poll_Record {
-        typedef std::shared_ptr<Poll_Record> Ptr;
-        int event;
-        int attach;
-        PollEventCB callBack;
-    };
-    unordered_map<int, Poll_Record::Ptr> _event_map;
-#endif //HAS_EPOLL
 
     //定时器相关
     multimap<uint64_t, DelayTask::Ptr> _delay_task_map;
