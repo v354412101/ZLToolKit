@@ -122,9 +122,6 @@ public:
         _type = type;
     }
     ~SockNum(){
-#if defined (OS_IPHONE)
-        unsetSocketOfIOS(_fd);
-#endif //OS_IPHONE
         ::shutdown(_fd, SHUT_RDWR);
         close(_fd);
     }
@@ -138,19 +135,10 @@ public:
     }
 
     void setConnected(){
-#if defined (OS_IPHONE)
-        setSocketOfIOS(_fd);
-#endif //OS_IPHONE
     }
 private:
     SockType _type;
     int _fd;
-#if defined (OS_IPHONE)
-    void *readStream=NULL;
-    void *writeStream=NULL;
-    bool setSocketOfIOS(int socket);
-    void unsetSocketOfIOS(int socket);
-#endif //OS_IPHONE
 };
 
 //socket 文件描述符的包装

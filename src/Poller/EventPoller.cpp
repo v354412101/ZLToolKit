@@ -20,7 +20,6 @@
 #include "Thread/ThreadPool.h"
 #include "Network/sockutil.h"
 
-
 #include <sys/epoll.h>
 
 #if !defined(EPOLLEXCLUSIVE)

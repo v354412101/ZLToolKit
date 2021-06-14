@@ -20,31 +20,6 @@ int BufferList::count(){
     return _iovec.size() - _iovec_off;
 }
 
-#if defined(_WIN32)
-int sendmsg(int fd, const struct msghdr *msg, int flags) {
-    int n = 0;
-    int total = 0;
-    for(auto i = 0; i != msg->msg_iovlen ; ++i ){
-        do {
-            n = sendto(fd,(char *)msg->msg_iov[i].iov_base,msg->msg_iov[i].iov_len,flags,(struct sockaddr *)msg->msg_name,msg->msg_namelen);
-        }while (-1 == n && UV_EINTR == get_uv_error(true));
-
-        if(n == -1 ){
-            //可能一个字节都未发送成功
-            return total ? total : -1;
-        }
-        if(n < msg->msg_iov[i].iov_len){
-            //发送部分字节成功
-            return total + n;
-        }
-        //单次全部发送成功
-        total += n;
-    }
-    //全部发送成功
-    return total;
-}
-#endif // defined(_WIN32)
-
 int BufferList::send_l(int fd, int flags,bool udp) {
     int n;
     do {
