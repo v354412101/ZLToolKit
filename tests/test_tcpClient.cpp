@@ -65,9 +65,6 @@ int main() {
     TestClient::Ptr client(new TestClient());//必须使用智能指针
     client->startConnect("127.0.0.1",9000);//连接服务器
 
-    TcpClientWithSSL<TestClient>::Ptr clientSSL(new TcpClientWithSSL<TestClient>());//必须使用智能指针
-    clientSSL->startConnect("127.0.0.1",9001);//连接服务器
-
     //退出程序事件处理
     static semaphore sem;
     signal(SIGINT, [](int) { sem.post(); });// 设置退出信号

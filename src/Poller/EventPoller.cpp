@@ -11,7 +11,6 @@
 #include <fcntl.h>
 #include <string.h>
 #include <list>
-#include "SelectWrap.h"
 #include "EventPoller.h"
 #include "Util/util.h"
 #include "Util/logger.h"

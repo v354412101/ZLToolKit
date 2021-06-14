@@ -16,7 +16,6 @@
 #include "Socket.h"
 #include "Util/logger.h"
 #include "Util/mini.h"
-#include "Util/SSLBox.h"
 #include "Thread/ThreadPool.h"
 using namespace std;
 
@@ -41,42 +40,6 @@ public:
     string getIdentifier() const override;
     //安全的脱离TcpServer并触发onError事件
     void safeShutdown(const SockException &ex = SockException(Err_shutdown, "self shutdown"));
-};
-
-template<typename TcpSessionType>
-class TcpSessionWithSSL: public TcpSessionType {
-public:
-    template<typename ...ArgsType>
-    TcpSessionWithSSL(ArgsType &&...args):TcpSessionType(std::forward<ArgsType>(args)...){
-        _sslBox.setOnEncData([&](const Buffer::Ptr &buffer){
-            public_send(buffer);
-        });
-        _sslBox.setOnDecData([&](const Buffer::Ptr &buffer){
-            public_onRecv(buffer);
-        });
-    }
-    virtual ~TcpSessionWithSSL(){
-        _sslBox.flush();
-    }
-
-    void onRecv(const Buffer::Ptr &pBuf) override{
-        _sslBox.onRecv(pBuf);
-    }
-
-    //添加public_onRecv和public_send函数是解决较低版本gcc一个lambad中不能访问protected或private方法的bug
-    inline void public_onRecv(const Buffer::Ptr &pBuf){
-        TcpSessionType::onRecv(pBuf);
-    }
-    inline void public_send(const Buffer::Ptr &pBuf){
-        TcpSessionType::send(pBuf);
-    }
-protected:
-    virtual int send(const Buffer::Ptr &buf) override{
-        _sslBox.onSend(buf);
-        return buf->size();
-    }
-private:
-    SSL_Box _sslBox;
 };
 
 } /* namespace toolkit */

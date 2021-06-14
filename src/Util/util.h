@@ -19,23 +19,9 @@
 #include <sstream>
 #include <vector>
 #include <unordered_map>
-#if defined(_WIN32)
-#define FD_SETSIZE 1024 //修改默认64为1024路
-#include <WinSock2.h>
-#pragma comment (lib,"WS2_32")
-#else
+
 #include <unistd.h>
 #include <sys/time.h>
-#endif // defined(_WIN32)
-
-#if defined(__APPLE__)
-#include "TargetConditionals.h"
-#if TARGET_IPHONE_SIMULATOR
-#define OS_IPHONE
-#elif TARGET_OS_IPHONE
-#define OS_IPHONE
-#endif
-#endif //__APPLE__
 
 #define INSTANCE_IMP(class_name, ...) \
 class_name &class_name::Instance() { \
@@ -164,26 +150,6 @@ bool isIP(const char *str);
 #ifndef bzero
 #define bzero(ptr,size)  memset((ptr),0,(size));
 #endif //bzero
-
-#if defined(ANDROID)
-template <typename T>
-std::string to_string(T value){
-    std::ostringstream os ;
-    os <<  std::forward<T>(value);
-    return os.str() ;
-}
-#endif//ANDROID
-
-#if defined(_WIN32)
-int gettimeofday(struct timeval *tp, void *tzp);
-void usleep(int micro_seconds);
-void sleep(int second);
-int asprintf(char **strp, const char *fmt, ...);
-#if !defined(strcasecmp)
-#define strcasecmp _stricmp
-#endif
-const char *strcasestr(const char *big, const char *little);
-#endif //WIN32
 
 /**
  * 获取1970年至今的毫秒数

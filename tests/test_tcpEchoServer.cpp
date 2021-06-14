@@ -11,9 +11,9 @@
 #include <signal.h>
 #include <iostream>
 
-#ifndef _WIN32
+
 #include <unistd.h>
-#endif
+
 
 #include "Util/logger.h"
 #include "Util/TimeTicker.h"
@@ -56,16 +56,11 @@ int main() {
     Logger::Instance().add(std::make_shared<ConsoleChannel>());
     Logger::Instance().setWriter(std::make_shared<AsyncLogWriter>());
 
-    //加载证书，证书包含公钥和私钥
-    SSL_Initor::Instance().loadCertificate((exeDir() + "ssl.p12").data());
-    SSL_Initor::Instance().trustCertificate((exeDir() + "ssl.p12").data());
-    SSL_Initor::Instance().ignoreInvalidCertificate(false);
 
     TcpServer::Ptr server(new TcpServer());
     server->start<EchoSession>(9000);//监听9000端口
 
-    TcpServer::Ptr serverSSL(new TcpServer());
-    serverSSL->start<TcpSessionWithSSL<EchoSession> >(9001);//监听9001端口
+
 
     //退出程序事件处理
     static semaphore sem;
