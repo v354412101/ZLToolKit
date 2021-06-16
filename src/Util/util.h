@@ -147,10 +147,6 @@ std::string strToUpper(std::string &&str);
 void replace(string &str, const string &old_str, const string &new_str) ;
 bool isIP(const char *str);
 
-#ifndef bzero
-#define bzero(ptr,size)  memset((ptr),0,(size));
-#endif //bzero
-
 /**
  * 获取1970年至今的毫秒数
  * @param system_time 是否为系统时间(系统时间可以回退),否则为程序启动时间(不可回退)

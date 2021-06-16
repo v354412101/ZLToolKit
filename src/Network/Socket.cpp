@@ -224,7 +224,9 @@ bool Socket::attachEvent(const SockFD::Ptr &sock, bool is_udp) {
         //udp包最大能达到64KB
         _read_buffer = std::make_shared<BufferRaw>(is_udp ? 0xFFFF : 128 * 1024);
     }
-    int result = _poller->addEvent(sock->rawFd(), Event_Read | Event_Error | Event_Write, [weak_self,weak_sock,is_udp](int event) {
+    int result = _poller->addEvent(sock->rawFd(),
+                                   Event_Read | Event_Error | Event_Write,
+                                   [weak_self, weak_sock, is_udp](int event) {
         auto strong_self = weak_self.lock();
         auto strong_sock = weak_sock.lock();
         if (!strong_self || !strong_sock) {

@@ -200,28 +200,16 @@ private:
 };
 
 
-class EventPollerPool : public std::enable_shared_from_this<EventPollerPool>, public TaskExecutorGetterImp {
+class EventPollerPool : public std::enable_shared_from_this<EventPollerPool>,
+                                  public TaskExecutorGetterImp {
 public:
     typedef std::shared_ptr<EventPollerPool> Ptr;
     ~EventPollerPool(){};
 
-    /**
-     * 获取单例
-     * @return
-     */
     static EventPollerPool &Instance();
 
-    /**
-     * 设置EventPoller个数，在EventPollerPool单例创建前有效
-     * 在不调用此方法的情况下，默认创建thread::hardware_concurrency()个EventPoller实例
-     * @param size  EventPoller个数，如果为0则为thread::hardware_concurrency()
-     */
     static void setPoolSize(int size = 0);
 
-    /**
-     * 获取第一个实例
-     * @return
-     */
     EventPoller::Ptr getFirstPoller();
 
     /**

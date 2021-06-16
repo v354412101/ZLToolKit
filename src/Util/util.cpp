@@ -80,16 +80,7 @@ string hexdump(const void *buf, size_t len) {
 string exePath() {
     char buffer[PATH_MAX * 2 + 1] = { 0 };
     int n = -1;
-#if defined(_WIN32)
-    n = GetModuleFileNameA(NULL, buffer, sizeof(buffer));
-#elif defined(__MACH__) || defined(__APPLE__)
-    n = sizeof(buffer);
-    if (uv_exepath(buffer, &n) != 0) {
-        n = -1;
-    }
-#elif defined(__linux__)
     n = readlink("/proc/self/exe", buffer, sizeof(buffer));
-#endif
 
     string filePath;
     if (n <= 0) {
@@ -98,15 +89,6 @@ string exePath() {
     else {
         filePath = buffer;
     }
-
-#if defined(_WIN32)
-    //windows下把路径统一转换层unix风格，因为后续都是按照unix风格处理的
-    for (auto &ch : filePath) {
-        if (ch == '\\') {
-            ch = '/';
-        }
-    }
-#endif //defined(_WIN32)
 
     return filePath;
 }
@@ -192,77 +174,12 @@ bool isIP(const char *str){
     return INADDR_NONE != inet_addr(str);
 }
 
-#if defined(_WIN32)
-void sleep(int second) {
-    Sleep(1000 * second);
-}
-void usleep(int micro_seconds) {
-    this_thread::sleep_for(std::chrono::microseconds(micro_seconds));
-}
-
-int gettimeofday(struct timeval *tp, void *tzp) {
-    auto now_stamp = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    tp->tv_sec = now_stamp / 1000000LL;
-    tp->tv_usec = now_stamp % 1000000LL;
-    return 0;
-}
-
-const char *strcasestr(const char *big, const char *little){
-    string big_str = big;
-    string little_str = little;
-    strToLower(big_str);
-    strToLower(little_str);
-    auto pos = strstr(big_str.data(), little_str.data());
-    if (!pos){
-        return nullptr;
-    }
-    return big + (pos - big_str.data());
-}
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-int vasprintf(char **strp, const char *fmt, va_list ap) {
-    // _vscprintf tells you how big the buffer needs to be
-    int len = _vscprintf(fmt, ap);
-    if (len == -1) {
-        return -1;
-    }
-    size_t size = (size_t)len + 1;
-    char *str = (char*)malloc(size);
-    if (!str) {
-        return -1;
-    }
-    // _vsprintf_s is the "secure" version of vsprintf
-    int r = vsprintf_s(str, len + 1, fmt, ap);
-    if (r == -1) {
-        free(str);
-        return -1;
-    }
-    *strp = str;
-    return r;
-}
-
- int asprintf(char **strp, const char *fmt, ...) {
-    va_list ap;
-    va_start(ap, fmt);
-    int r = vasprintf(strp, fmt, ap);
-    va_end(ap);
-    return r;
-}
-
-#endif //WIN32
-
-
 static inline uint64_t getCurrentMicrosecondOrigin() {
-#if !defined(_WIN32)
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return tv.tv_sec * 1000000LL + tv.tv_usec;
-#else
-    return  std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-#endif
 }
+
 static atomic<uint64_t> s_currentMicrosecond(0);
 static atomic<uint64_t> s_currentMillisecond(0);
 static atomic<uint64_t> s_currentMicrosecond_system(getCurrentMicrosecondOrigin());
@@ -291,12 +208,7 @@ static inline bool initMillisecondThread() {
             } else if(expired != 0){
                 WarnL << "Stamp expired is not abnormal:" << expired;
             }
-#if !defined(_WIN32)
-            //休眠0.5 ms
             usleep(500);
-#else
-            Sleep(1);
-#endif
         }
     });
     static onceToken s_token([]() {

@@ -239,47 +239,6 @@ protected:
     string _path;
 };
 
-/**
- * 自动清理的日志文件通道
- * 默认最多保存30天的日志
- */
-class FileChannel : public FileChannelBase {
-public:
-    FileChannel(const string &name = "FileChannel",const string &dir = exeDir() + "log/", LogLevel level = LTrace);
-    ~FileChannel() override;
-
-    /**
-     * 写日志时才会触发新建日志文件或者删除老的日志文件
-     * @param logger
-     * @param stream
-     */
-    void write(const Logger &logger , const LogContextPtr &ctx) override;
-
-    /**
-     * 设置日志最大保存天数
-     * @param max_day
-     */
-    void setMaxDay(int max_day);
-private:
-    /**
-     * 获取1970年以来的第几天
-     * @param second
-     * @return
-     */
-    int64_t getDay(time_t second);
-    /**
-     * 删除老文件
-     */
-    void clean();
-private:
-    bool _canWrite = false;
-    string _dir;
-    int64_t _last_day = -1;
-    map<uint64_t,string> _log_file_map;
-    int _log_max_day = 30;
-};
-
-
 
 #if defined(__MACH__) || ((defined(__linux) || defined(__linux__)) &&  !defined(ANDROID))
 class SysLogChannel : public LogChannel {

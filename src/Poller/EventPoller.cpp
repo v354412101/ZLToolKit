@@ -1,14 +1,4 @@
-﻿/*
- * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
- *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
- *
- * Use of this source code is governed by MIT license that can be found in the
- * LICENSE file in the root of the source tree. All contributing project authors
- * may be found in the AUTHORS file in the root of the source tree.
- */
-
-#include <fcntl.h>
+﻿#include <fcntl.h>
 #include <string.h>
 #include <list>
 #include "EventPoller.h"
@@ -31,6 +21,7 @@
                             | (((event) & Event_Write) ? EPOLLOUT : 0) \
                             | (((event) & Event_Error) ? (EPOLLHUP | EPOLLERR) : 0) \
                             | (((event) & Event_LT) ?  0 : EPOLLET)
+
 #define toPoller(epoll_event) (((epoll_event) & EPOLLIN) ? Event_Read : 0) \
                             | (((epoll_event) & EPOLLOUT) ? Event_Write : 0) \
                             | (((epoll_event) & EPOLLHUP) ? Event_Error : 0) \
@@ -253,7 +244,7 @@ void EventPoller::runLoop(bool blocked,bool regist_self) {
                 try {
                     (*cb)(toPoller(ev.events));
                 } catch (std::exception &ex) {
-                    ErrorL << "EventPoller执行事件回调捕获到异常:" << ex.what();
+                    ErrorL << "EventPoller callback error:" << ex.what();
                 }
             }
         }
@@ -340,13 +331,13 @@ void EventPollerPool::preferCurrentThread(bool flag){
 }
 
 EventPollerPool::EventPollerPool(){
-    auto size = s_pool_size > 0 ? s_pool_size : thread::hardware_concurrency();
+    auto size = s_pool_size > 0 ? s_pool_size : std::thread::hardware_concurrency();
     createThreads([]() {
         EventPoller::Ptr ret(new EventPoller);
         ret->runLoop(false, true);
         return ret;
     }, size);
-    InfoL << "创建EventPoller个数:" << size;
+    InfoL << "EventPoller size:" << size;
 }
 
 void EventPollerPool::setPoolSize(int size) {

@@ -73,13 +73,6 @@ public:
     static bool setPriority(Priority priority = PRIORITY_NORMAL,
             thread::native_handle_type threadId = 0) {
         // set priority
-#if defined(_WIN32)
-        static int Priorities[] = { THREAD_PRIORITY_LOWEST, THREAD_PRIORITY_BELOW_NORMAL, THREAD_PRIORITY_NORMAL, THREAD_PRIORITY_ABOVE_NORMAL, THREAD_PRIORITY_HIGHEST };
-        if (priority != PRIORITY_NORMAL && SetThreadPriority(GetCurrentThread(), Priorities[priority]) == 0) {
-            return false;
-        }
-        return true;
-#else
         static int Min = sched_get_priority_min(SCHED_OTHER);
         if (Min == -1) {
             return false;
@@ -97,7 +90,6 @@ public:
         struct sched_param params;
         params.sched_priority = Priorities[priority];
         return pthread_setschedparam(threadId, SCHED_OTHER, &params) == 0;
-#endif
     }
 
     void start() {

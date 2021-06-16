@@ -9,9 +9,9 @@
  */
 #include <stdio.h>
 #include <fcntl.h>
-#include <string.h>
 #include <sys/types.h>
 #include <mutex>
+#include <cstring>
 #include <string>
 #include <unordered_map>
 #include "sockutil.h"
@@ -418,7 +418,7 @@ int SockUtil::bindSock(int sockFd,const char *ifr_ip,uint16_t port){
     servaddr.sin_family = AF_INET;
     servaddr.sin_port = htons(port);
     servaddr.sin_addr.s_addr = inet_addr(ifr_ip);
-    bzero(&(servaddr.sin_zero), sizeof servaddr.sin_zero);
+    std::memset(&(servaddr.sin_zero), 0, sizeof(servaddr.sin_zero));
     //绑定监听
     if (::bind(sockFd, (struct sockaddr *) &servaddr, sizeof(servaddr)) == -1) {
         WarnL << "绑定套接字失败:" << get_uv_errmsg(true);

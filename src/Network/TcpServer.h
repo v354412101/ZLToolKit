@@ -1,14 +1,4 @@
-﻿/*
- * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
- *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
- *
- * Use of this source code is governed by MIT license that can be found in the
- * LICENSE file in the root of the source tree. All contributing project authors
- * may be found in the AUTHORS file in the root of the source tree.
- */
-
-#ifndef TCPSERVER_TCPSERVER_H
+﻿#ifndef TCPSERVER_TCPSERVER_H
 #define TCPSERVER_TCPSERVER_H
 
 #include <assert.h>
@@ -17,6 +7,7 @@
 #include <exception>
 #include <functional>
 #include <unordered_map>
+
 #include "TcpSession.h"
 #include "Util/mini.h"
 #include "Util/util.h"
@@ -24,6 +15,7 @@
 #include "Util/uv_errno.h"
 #include "Poller/Timer.h"
 #include "Thread/semaphore.h"
+
 using namespace std;
 
 namespace toolkit {
@@ -226,7 +218,7 @@ protected:
         auto helper = _session_alloc(weak_self, sock);
         auto &session = helper->session();
         //把本服务器的配置传递给TcpSession
-        session->attachServer(*this);
+        //session->attachServer(*this);
 
         //_session_map::emplace肯定能成功
         auto success = _session_map.emplace(helper.get(), helper).second;

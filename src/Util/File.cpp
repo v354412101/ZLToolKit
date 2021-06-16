@@ -1,23 +1,9 @@
-﻿/*
- * Copyright (c) 2016 The ZLToolKit project authors. All Rights Reserved.
- *
- * This file is part of ZLToolKit(https://github.com/xiongziliang/ZLToolKit).
- *
- * Use of this source code is governed by MIT license that can be found in the
- * LICENSE file in the root of the source tree. All contributing project authors
- * may be found in the AUTHORS file in the root of the source tree.
- */
-
-#if defined(_WIN32)
-#include <io.h>   
-#include <direct.h>
-#else
-#include <dirent.h>
-#endif // WIN32
-
+﻿#include <dirent.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+
 #include <string>
+
 #include "File.h"
 #include "Util/util.h"
 #include "Util/logger.h"
@@ -32,74 +18,6 @@ using namespace toolkit;
     #define	_rmdir	rmdir
     #define	_access	access
 #endif
-
-#if defined(_WIN32)
-
-
-int mkdir(const char *path, int mode) {
-    return _mkdir(path);
-}
-
-DIR *opendir(const char *name) {
-    char namebuf[512];
-    sprintf(namebuf, "%s\\*.*", name);
-
-    WIN32_FIND_DATAA FindData;
-    auto hFind = FindFirstFileA(namebuf, &FindData);
-    if (hFind == INVALID_HANDLE_VALUE) {
-        WarnL << "FindFirstFileA failed:" << get_uv_errmsg();
-        return nullptr;
-    }
-    DIR *dir = (DIR *)malloc(sizeof(DIR));
-    memset(dir, 0, sizeof(DIR));
-    dir->dd_fd = 0;   // simulate return  
-    dir->handle = hFind;
-    return dir;
-}
-struct dirent *readdir(DIR *d) {
-    HANDLE hFind = d->handle;
-    WIN32_FIND_DATAA FileData;
-    //fail or end  
-    if (!FindNextFileA(hFind, &FileData)) {
-        return nullptr;
-    }
-    struct dirent *dir = (struct dirent *)malloc(sizeof(struct dirent) + sizeof(FileData.cFileName));
-    strcpy(dir->d_name, (char *)FileData.cFileName);
-    dir->d_reclen = strlen(dir->d_name);
-    //check there is file or directory  
-    if (FileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-        dir->d_type = 2;
-    }
-    else {
-        dir->d_type = 1;
-    }
-    if (d->index) {
-        //覆盖前释放内存
-        free(d->index);
-        d->index = nullptr;
-    }
-    d->index = dir;
-    return dir;
-}
-int closedir(DIR *d) {
-    if (!d) {
-        return -1;
-    }
-    //关闭句柄
-    if (d->handle != INVALID_HANDLE_VALUE) {
-        FindClose(d->handle);
-        d->handle = INVALID_HANDLE_VALUE;
-    }
-    //释放内存
-    if (d->index) {
-        free(d->index);
-        d->index = nullptr;
-    }
-    free(d);
-    return 0;
-}
-#endif // defined(_WIN32)
-
 
 namespace toolkit {
 
@@ -154,13 +72,11 @@ bool File::is_dir(const char *path) {
         if ((statbuf.st_mode & S_IFMT) == S_IFDIR) {
             return true;
         }
-#if !defined(_WIN32)
         if (S_ISLNK(statbuf.st_mode)) {
             char realFile[256] = { 0 };
             readlink(path, realFile, sizeof(realFile));
             return File::is_dir(realFile);
         }
-#endif // !defined(_WIN32)
     }
     return false;
 }
@@ -172,13 +88,11 @@ bool File::is_file(const char *path) {
         if ((statbuf.st_mode & S_IFMT) == S_IFREG) {
             return true;
         }
-#if !defined(_WIN32)
         if (S_ISLNK(statbuf.st_mode)) {
             char realFile[256] = { 0 };
             readlink(path, realFile, sizeof(realFile));
             return File::is_file(realFile);
         }
-#endif // !defined(_WIN32)
     }
     return false;
 }
